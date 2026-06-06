@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMAP NASA RFI Analysis Tool</title>
+    <style>
+        :root { --primary: #0056b3; --bg: #f4f6f8; --border: #dee2e6; }
+        body { font-family: sans-serif; margin: 0; padding: 20px; background: var(--bg); color: #333; min-height: 100vh; display: flex; flex-direction: column; }
+        
+        .container { max-width: 1600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); flex: 1; }
+        
+        /* Header & Nav */
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        h1 { margin: 0; color: #1a2a3a; }
+        .nav-btn { background: #6c757d; }
+        .nav-btn:hover { background: #5a6268; }
+
+        /* Controls */
+        .controls { display: flex; justify-content: center; gap: 20px; margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 6px; align-items: center; flex-wrap: wrap; }
+        label { font-weight: bold; font-size: 0.9rem; }
+        input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        
+        button { padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.9rem; }
+        button:hover { background: #004494; }
+
+        /* Grids & Cards */
+        .grid { display: grid; gap: 20px; }
+        .grid-2 { grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); }
+        
+        .card { border: 1px solid var(--border); padding: 10px; border-radius: 6px; background: #fff; text-align: center; }
+        .card h3 { margin-top: 0; font-size: 1.1rem; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+
+        /* Seasonal Table */
+        .seasonal-container { overflow-x: auto; }
+        .seasonal-table { width: 100%; border-collapse: collapse; min-width: 1200px; }
+        .seasonal-table th, .seasonal-table td { border: 1px solid #ddd; padding: 5px; text-align: center; vertical-align: middle; }
+        .seasonal-table th { background: #f1f1f1; font-size: 0.85rem; }
+        .seasonal-table td { width: 20%; } /* Equal width for 4 data columns */
+
+        .canvas-wrapper { position: relative; display: inline-block; }
+        
+        canvas { max-width: 100%; height: auto; border: 1px solid #eee; cursor: zoom-in; background: #fafafa; }
+        canvas.zoomed { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(2); z-index: 999; box-shadow: 0 0 0 100vw rgba(0,0,0,0.8); max-width: 90vw; max-height: 90vh; border: 2px solid white; cursor: zoom-out; }
+
+        /* Utilities */
+        .toolbar { margin-top: 5px; }
+        .toolbar button { font-size: 0.8rem; padding: 4px 8px; margin: 0 2px; }
+        .toolbar .btn-save { background: #28a745; }
+        
+        .hidden { display: none !important; }
+        .loading { text-align: center; font-weight: bold; color: var(--primary); margin: 20px; font-size: 1.2rem; }
+        
+        .legend { font-size: 0.8em; font-weight: bold; margin-top: 5px; }
+        .green { color: green; } .red { color: red; }
+
+        footer { text-align: center; padding: 15px; font-size: 0.9em; background: #1a2a3a; color: #ccc; margin-top: auto; }
+        footer a { color: white; font-weight: bold; text-decoration: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>SMAP RFI Analysis</h1>
+        <div>
+            <button class="nav-btn" onclick="showView('main')">Monthly Comparison</button>
+            <button class="nav-btn" onclick="showView('seasonal')">Year-to-Year Comparison</button>
+        </div>
+    </header>
+
+    <!-- MAIN VIEW: Monthly -->
+    <div id="mainView">
+        <div class="controls">
+            <label>Start Month:</label> <input type="month" id="m1" value="2026-03">
+            <label>Comparison Month:</label> <input type="month" id="m2" value="2026-04">
+            <button onclick="runMain()">Analyze Difference</button>
+        </div>
+        <div id="loadingMain" class="loading hidden">Processing...</div>
+        
+        <div class="grid grid-2">
+            <!-- Month 1 -->
+            <div class="card">
+                <h3>Start Month (Original)</h3>
+                <div class="canvas-wrapper"><canvas id="c_m1"></canvas></div>
+                <div class="toolbar"><button onclick="dl('c_m1')">Save Image</button></div>
+            </div>
+            <!-- Month 2 -->
+            <div class="card">
+                <h3>Comparison Month (Original)</h3>
+                <div class="canvas-wrapper"><canvas id="c_m2"></canvas></div>
+                <div class="toolbar"><button onclick="dl('c_m2')">Save Image</button></div>
+            </div>
+            <!-- Diff ON -->
+            <div class="card">
+                <h3>Zones Turned ON (New Interference)</h3>
+                <div class="canvas-wrapper"><canvas id="c_on"></canvas></div>
+                <p class="legend green">Green: Interference Appeared</p>
+                <div class="toolbar"><button onclick="dl('c_on')">Save Image</button></div>
+            </div>
+            <!-- Diff OFF -->
+            <div class="card">
+                <h3>Zones Turned OFF (Reduced Interference)</h3>
+                <div class="canvas-wrapper"><canvas id="c_off"></canvas></div>
+                <p class="legend red">Red: Interference Disappeared</p>
+                <div class="toolbar"><button onclick="dl('c_off')">Save Image</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SEASONAL VIEW: Annual -->
+    <div id="seasonalView" class="hidden">
+        <div class="controls">
+            <label>Year A:</label> <input type="number" id="y1" value="2015" min="2015" max="2026" style="width: 70px;">
+            <label>Year B:</label> <input type="number" id="y2" value="2016" min="2015" max="2026" style="width: 70px;">
+            <button onclick="runSeasonal()">Generate Annual Grid</button>
+        </div>
+        <div id="loadingSeasonal" class="loading hidden">Generating Grid (Processing up to 48 images)...</div>
+        
+        <div class="seasonal-container">
+            <table class="seasonal-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">Month</th>
+                        <th>Year A (Original)</th>
+                        <th>Year B (Original)</th>
+                        <th>Zones Turned ON</th>
+                        <th>Zones Turned OFF</th>
+                    </tr>
+                </thead>
+                <tbody id="seasonalBody">
+                    <!-- Generated by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<footer>
+    This code provide from: "GiamMa-based researchers SDR R&D IoT" | 
+    <a href="https://x.com/giammaiot2" target="_blank">@GiammaIoT2</a>
+</footer>
+
+<script>
+    // --- UTILS ---
+    const getURL = (y, m) => `https://salinity.oceansciences.org/images/maps/SMAP_RFI_percent_${y}_${m.toString().padStart(2,'0')}.png`;
+    
+    // Robust Image Loader
+    const loadImage = async (url) => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null); // Fail gracefully
+            img.src = url;
+        });
+    };
+
+    const showView = (v) => {
+        document.getElementById('mainView').classList.toggle('hidden', v !== 'main');
+        document.getElementById('seasonalView').classList.toggle('hidden', v !== 'seasonal');
+    };
+
+    const toggleZoom = (e) => e.target.classList.toggle('zoomed');
+    
+    const dl = (id) => {
+        const c = document.getElementById(id);
+        if(!c) return;
+        const l = document.createElement('a');
+        l.download = `RFI_${id}.png`;
+        l.href = c.toDataURL();
+        l.click();
+    };
+    document.addEventListener('click', e => { if(e.target.tagName === 'CANVAS') toggleZoom(e); });
+
+    // --- BORDER LOGIC (Cached) ---
+    let borderData = null;
+    async function drawBorders(ctx, w, h) {
+        if(!borderData) {
+            try {
+                const r = await fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json');
+                borderData = await r.json();
+            } catch(e) { return; }
+        }
+        ctx.strokeStyle="rgba(0,0,0,0.4)"; ctx.lineWidth=1; ctx.beginPath();
+        borderData.features.forEach(f => {
+            const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
+            polys.forEach(poly => poly[0].forEach((p, i) => {
+                const x = (p[0]+180)*(w/360), y = (90-p[1])*(h/180);
+                if(i===0 || Math.abs(p[0] - poly[0][i-1][0]) > 180) ctx.moveTo(x,y);
+                else ctx.lineTo(x,y);
+            }));
+        });
+        ctx.stroke();
+    }
+
+    // --- CORE ANALYSIS LOGIC (Handles any two dates) ---
+    async function analyzePair(ctxA, ctxB, ctxOn, ctxOff, y1, m1, y2, m2, width, height) {
+        const img1 = await loadImage(getURL(y1, m1));
+        const img2 = await loadImage(getURL(y2, m2));
+
+        // Setup Canvases
+        [ctxA, ctxB, ctxOn, ctxOff].forEach(c => { 
+            c.canvas.width = width; c.canvas.height = height; 
+            c.fillStyle = "#eee"; 
+            c.fillRect(0,0,width,height); // Background for "No Data"
+        });
+
+        // Draw Originals
+        if(img1) {
+            ctxA.drawImage(img1, 0, 0, width, height);
+            ctxA.fillStyle = "#000"; ctxA.fillText(`${y1}-${m1}`, 10, 20);
+        } else {
+            ctxA.fillStyle = "#000"; ctxA.fillText("No Data", width/2 - 20, height/2);
+        }
+        
+        if(img2) {
+            ctxB.drawImage(img2, 0, 0, width, height);
+            ctxB.fillStyle = "#000"; ctxB.fillText(`${y2}-${m2}`, 10, 20);
+        } else {
+            ctxB.fillStyle = "#000"; ctxB.fillText("No Data", width/2 - 20, height/2);
+        }
+
+        // Calculate Differences
+        if(img1 && img2) {
+            // Create temp canvases to read raw pixels (avoids taint issues if dimensions differ)
+            const t1 = document.createElement('canvas'); t1.width=width; t1.height=height;
+            const t2 = document.createElement('canvas'); t2.width=width; t2.height=height;
+            const x1 = t1.getContext('2d'), x2 = t2.getContext('2d');
+            x1.drawImage(img1, 0, 0, width, height);
+            x2.drawImage(img2, 0, 0, width, height);
+
+            const d1 = x1.getImageData(0,0,width,height).data;
+            const d2 = x2.getImageData(0,0,width,height).data;
+            const rOn = ctxOn.createImageData(width,height);
+            const rOff = ctxOff.createImageData(width,height);
+            const thresh = 30;
+
+            for(let i=0; i<d1.length; i+=4) {
+                const i1 = (d1[i]+d1[i+1]+d1[i+2])/3;
+                const i2 = (d2[i]+d2[i+1]+d2[i+2])/3;
+                const diff = i2 - i1;
+                
+                if(diff > thresh) { // ON (More in B)
+                    rOn.data[i]=0; rOn.data[i+1]=255; rOn.data[i+2]=0; rOn.data[i+3]=255;
+                } else if(diff < -thresh) { // OFF (Less in B)
+                    rOff.data[i]=255; rOff.data[i+1]=0; rOff.data[i+2]=0; rOff.data[i+3]=255;
+                }
+            }
+            ctxOn.putImageData(rOn,0,0);
+            ctxOff.putImageData(rOff,0,0);
+            
+            drawBorders(ctxOn, width, height);
+            drawBorders(ctxOff, width, height);
+        }
+    }
+
+    // --- MAIN MONTHLY LOGIC ---
+    async function runMain() {
+        const l = document.getElementById('loadingMain'); l.classList.remove('hidden');
+        const [y1,m1] = document.getElementById('m1').value.split('-');
+        const [y2,m2] = document.getElementById('m2').value.split('-');
+        
+        const ctx1 = document.getElementById('c_m1').getContext('2d');
+        const ctx2 = document.getElementById('c_m2').getContext('2d');
+        const ctxOn = document.getElementById('c_on').getContext('2d');
+        const ctxOff = document.getElementById('c_off').getContext('2d');
+
+        // Use high resolution for main view
+        await analyzePair(ctx1, ctx2, ctxOn, ctxOff, y1, m1, y2, m2, 720, 360);
+        l.classList.add('hidden');
+    }
+
+    // --- SEASONAL LOGIC ---
+    async function runSeasonal() {
+        const l = document.getElementById('loadingSeasonal'); l.classList.remove('hidden');
+        const yA = document.getElementById('y1').value;
+        const yB = document.getElementById('y2').value;
+        
+        const tbody = document.getElementById('seasonalBody');
+        tbody.innerHTML = '';
+        const tasks = [];
+
+        const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+        for(let m=1; m<=12; m++) {
+            const tr = document.createElement('tr');
+            
+            // Create unique IDs for canvases
+            const idA = `s_${yA}_${m}`, idB = `s_${yB}_${m}`, idOn = `s_on_${yB}_${m}`, idOff = `s_off_${yB}_${m}`;
+
+            tr.innerHTML = `
+                <td>${months[m-1]}</td>
+                <td><div class="canvas-wrapper"><canvas id="${idA}"></canvas></div></td>
+                <td><div class="canvas-wrapper"><canvas id="${idB}"></canvas></div></td>
+                <td><div class="canvas-wrapper"><canvas id="${idOn}"></canvas></div></td>
+                <td><div class="canvas-wrapper"><canvas id="${idOff}"></canvas></div></td>
+            `;
+            tbody.appendChild(tr);
+
+            tasks.push((async () => {
+                // Lower resolution for grid to improve performance
+                const w = 200, h = 100;
+                const ctxA = document.getElementById(idA).getContext('2d');
+                const ctxB = document.getElementById(idB).getContext('2d');
+                const ctxOn = document.getElementById(idOn).getContext('2d');
+                const ctxOff = document.getElementById(idOff).getContext('2d');
+
+                await analyzePair(ctxA, ctxB, ctxOn, ctxOff, yA, m, yB, m, w, h);
+            })());
+        }
+
+        await Promise.all(tasks);
+        l.classList.add('hidden');
+    }
+</script>
+
+</body>
+</html>
