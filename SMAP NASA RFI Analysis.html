@@ -41,7 +41,7 @@
         .canvas-wrapper { position: relative; display: inline-block; }
         
         canvas { max-width: 100%; height: auto; border: 1px solid #eee; cursor: zoom-in; background: #fafafa; }
-        canvas.zoomed { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(2); z-index: 999; box-shadow: 0 0 0 100vw rgba(0,0,0,0.8); max-width: 90vw; max-height: 90vh; border: 2px solid white; cursor: zoom-out; }
+        canvas.zoomed { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(1); z-index: 999; box-shadow: 0 0 0 100vw rgba(0,0,0,0.8); max-width: 95vw; max-height: 95vh; border: 2px solid white; cursor: zoom-out; }
 
         /* Utilities */
         .toolbar { margin-top: 5px; }
@@ -299,8 +299,9 @@
             tbody.appendChild(tr);
 
             tasks.push((async () => {
-                // Lower resolution for grid to improve performance
-                const w = 200, h = 100;
+                // MODIFICA APPLICATA: Risoluzione portata da 200x100 a 720x360 (Alta qualità)
+                const w = 720, h = 360;
+                
                 const ctxA = document.getElementById(idA).getContext('2d');
                 const ctxB = document.getElementById(idB).getContext('2d');
                 const ctxOn = document.getElementById(idOn).getContext('2d');
