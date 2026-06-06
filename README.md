@@ -2,6 +2,8 @@ NASA SMAP-RFI-Analysis
 
 Thanks especially to the NASA SMAP Group that allows us these analyzes with publicly available data!
 
+https://salinity.oceansciences.org/smap-radiometer.htm
+
 Obviously, there will be several fixes to be made, and the code isn't clean, and you will find entities that appear to be false positives but are not always false positives. I consider the exercise very interesting for various levels of understanding, knowledge and technicalities.
 
 As always, you can use the plain HTML locally 👋👋👋
