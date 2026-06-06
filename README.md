@@ -76,7 +76,7 @@ Usage
         Difference maps (ON/OFF) for every month of the year.
 
 
-<img width="1920" height="1041" alt="image" src="https://github.com/user-attachments/assets/7ac25dc6-84d5-4b0f-ad21-a7d7302ef7f5" />
+<img width="1897" height="901" alt="image" src="https://github.com/user-attachments/assets/2b763780-3ec4-4416-993e-6582cce85a6a" />
 
 
 
