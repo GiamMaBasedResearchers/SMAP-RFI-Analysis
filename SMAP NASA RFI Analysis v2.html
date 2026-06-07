@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMAP NASA RFI Analysis Tool</title>
+    <style>
+        :root { 
+            --nasa-blue: #4b9cd3; 
+            --nasa-red: #fc3d21;
+            --nasa-dark: #0b0d17;
+            --glass: rgba(11, 13, 23, 0.85);
+            --border: rgba(75, 156, 211, 0.4);
+        }
+        
+        body { 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            margin: 0; padding: 20px; 
+            background-color: var(--nasa-dark);
+            background-image: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2000&auto=format&fit=crop');
+            background-size: cover; background-position: center; background-attachment: fixed;
+            color: #eee; min-height: 100vh; display: flex; flex-direction: column;
+        }
+
+        .container { 
+            max-width: 1800px; margin: 0 auto; 
+            background: var(--glass); backdrop-filter: blur(12px);
+            padding: 30px; border-radius: 12px; 
+            border: 1px solid var(--border);
+            box-shadow: 0 0 20px rgba(0,0,0,0.8); 
+            flex: 1; margin-bottom: 20px;
+        }
+        
+        /* Header & Nav */
+        header { 
+            display: flex; justify-content: space-between; align-items: center; 
+            border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 30px; flex-wrap: wrap; gap: 15px; 
+        }
+        h1 { margin: 0; color: var(--nasa-blue); text-shadow: 0 0 10px rgba(75, 156, 211, 0.5); font-size: 2rem; letter-spacing: 1px; text-transform: uppercase;}
+        
+        .nav-btn { background: transparent; border: 1px solid var(--nasa-blue); color: var(--nasa-blue); transition: 0.3s; }
+        .nav-btn:hover, .nav-btn.active { background: var(--nasa-blue); color: #fff; box-shadow: 0 0 15px var(--nasa-blue); }
+
+        /* Controls */
+        .controls { 
+            display: flex; justify-content: center; gap: 20px; margin-bottom: 30px; 
+            background: rgba(255,255,255,0.05); padding: 20px; border-radius: 8px; 
+            align-items: center; flex-wrap: wrap; border: 1px solid var(--border); 
+        }
+        label { font-weight: 600; color: #ccc; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px; }
+        input, select { 
+            padding: 10px; border: 1px solid #555; border-radius: 4px; 
+            background: rgba(0,0,0,0.5); color: white; font-family: inherit;
+        }
+        input:focus { outline: 1px solid var(--nasa-blue); }
+        
+        button { 
+            padding: 12px 25px; background: var(--nasa-blue); color: white; 
+            border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1rem; 
+            text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s; 
+        }
+        button:hover { background: #3a8ac0; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(75, 156, 211, 0.4); }
+        button:disabled { background: #555; cursor: not-allowed; transform: none; box-shadow: none; }
+        button.btn-danger { background: var(--nasa-red); }
+        button.btn-sm { padding: 5px 10px; font-size: 0.8rem; }
+
+        /* Grids & Cards */
+        .grid { display: grid; gap: 25px; }
+        .grid-3 { grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); }
+        
+        .card { 
+            border: 1px solid var(--border); padding: 15px; border-radius: 8px; 
+            background: rgba(0,0,0,0.3); text-align: center; transition: 0.3s;
+        }
+        .card:hover { border-color: var(--nasa-blue); background: rgba(0,0,0,0.5); }
+        .card h3 { margin-top: 0; color: #fff; border-bottom: 1px solid #333; padding-bottom: 10px; font-size: 1rem;}
+
+        /* Seasonal Table */
+        .seasonal-container { overflow-x: auto; }
+        .seasonal-table { width: 100%; border-collapse: collapse; min-width: 1400px; }
+        .seasonal-table th, .seasonal-table td { border: 1px solid #333; padding: 8px; text-align: center; vertical-align: middle; }
+        .seasonal-table th { background: rgba(75, 156, 211, 0.2); color: var(--nasa-blue); text-transform: uppercase; font-size: 0.9rem; padding: 12px; }
+        .seasonal-table tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+        .seasonal-table td { width: 16.6%; }
+
+        /* Animation Section */
+        .playlist-container { 
+            display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; max-height: 200px; overflow-y: auto; 
+            background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; border: 1px solid #333;
+        }
+        .playlist-item { 
+            display: flex; gap: 10px; align-items: center; background: rgba(255,255,255,0.05); 
+            padding: 10px; border-radius: 4px; border-left: 3px solid var(--nasa-blue); 
+        }
+
+        .anim-player { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+        .anim-canvas-box { 
+            position: relative; border: 2px solid var(--nasa-blue); 
+            box-shadow: 0 0 30px rgba(75, 156, 211, 0.3); 
+            background: #000; max-width: 100%;
+        }
+        .timeline-controls { display: flex; gap: 15px; align-items: center; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 50px; border: 1px solid #333; }
+        .progress-bar { width: 100%; height: 6px; background: #333; border-radius: 3px; margin-top: 10px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--nasa-red); width: 0%; transition: width 0.2s; }
+
+        .canvas-wrapper { position: relative; display: inline-block; }
+        
+        canvas { max-width: 100%; height: auto; border: 1px solid #333; cursor: zoom-in; background: #000; }
+        canvas.zoomed { 
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(1.5); 
+            z-index: 2000; box-shadow: 0 0 0 100vw rgba(0,0,0,0.9); 
+            max-width: 90vw; max-height: 90vh; border: 2px solid white; cursor: zoom-out; 
+        }
+
+        /* Utilities */
+        .toolbar { margin-top: 10px; display: flex; justify-content: center; gap: 5px; }
+        .toolbar button { font-size: 0.8rem; padding: 5px 10px; margin: 0; }
+        .toolbar .btn-save { background: var(--nasa-red); }
+        
+        .hidden { display: none !important; }
+        .loading { 
+            text-align: center; font-weight: bold; color: var(--nasa-blue); margin: 30px; 
+            font-size: 1.5rem; text-transform: uppercase; letter-spacing: 2px;
+        }
+        
+        .legend { font-size: 0.85em; font-weight: bold; margin-top: 8px; text-transform: uppercase; }
+        .green { color: #0f0; } .red { color: #f00; } .yellow { color: #ff0; }
+
+        footer { 
+            text-align: center; padding: 20px; font-size: 0.9em; 
+            background: rgba(0,0,0,0.8); color: #aaa; margin-top: auto; border-top: 1px solid #333; 
+        }
+        footer a { color: var(--nasa-blue); font-weight: bold; text-decoration: none; }
+        footer a:hover { color: #fff; text-decoration: underline; }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>SMAP RFI Analysis <span style="font-size:0.6em; vertical-align:middle; opacity:0.8;">| MISSION DASHBOARD</span></h1>
+        <div>
+            <button class="nav-btn active" id="btn-main" onclick="showView('main')">Monthly</button>
+            <button class="nav-btn" id="btn-seasonal" onclick="showView('seasonal')">Year-to-Year</button>
+            <button class="nav-btn" id="btn-anim" onclick="showView('animation')">Animation</button>
+        </div>
+    </header>
+
+    <!-- MAIN VIEW: Monthly -->
+    <div id="mainView">
+        <div class="controls">
+            <label>Start Month:</label> <input type="month" id="m1" value="2026-03">
+            <label>Comparison Month:</label> <input type="month" id="m2" value="2026-04">
+            <button onclick="runMain()">Analyze Difference</button>
+        </div>
+        <div id="loadingMain" class="loading hidden">Processing Satellite Data...</div>
+        
+        <div class="grid grid-3">
+            <div class="card"><h3>Start Month</h3><div class="canvas-wrapper"><canvas id="c_m1"></canvas></div><div class="toolbar"><button onclick="dl('c_m1')">Save</button></div></div>
+            <div class="card"><h3>Comparison Month</h3><div class="canvas-wrapper"><canvas id="c_m2"></canvas></div><div class="toolbar"><button onclick="dl('c_m2')">Save</button></div></div>
+            <div class="card"><h3>Zones Turned ON</h3><div class="canvas-wrapper"><canvas id="c_on"></canvas></div><p class="legend green">New Interference</p><div class="toolbar"><button onclick="dl('c_on')">Save</button></div></div>
+            <div class="card"><h3>Zones Turned OFF</h3><div class="canvas-wrapper"><canvas id="c_off"></canvas></div><p class="legend red">Reduced Interference</p><div class="toolbar"><button onclick="dl('c_off')">Save</button></div></div>
+            <div class="card"><h3>Zones Fixed</h3><div class="canvas-wrapper"><canvas id="c_fixed"></canvas></div><p class="legend yellow">Stable Interference</p><div class="toolbar"><button onclick="dl('c_fixed')">Save</button></div></div>
+        </div>
+    </div>
+
+    <!-- SEASONAL VIEW: Annual -->
+    <div id="seasonalView" class="hidden">
+        <div class="controls">
+            <label>Year A:</label> <input type="number" id="y1" value="2015" min="2015" max="2026" style="width: 70px;">
+            <label>Year B:</label> <input type="number" id="y2" value="2016" min="2015" max="2026" style="width: 70px;">
+            <button onclick="runSeasonal()">Generate Grid</button>
+        </div>
+        <div id="loadingSeasonal" class="loading hidden">Generating Annual Grid...</div>
+        <div class="seasonal-container">
+            <table class="seasonal-table">
+                <thead>
+                    <tr>
+                        <th>Month</th><th>Year A</th><th>Year B</th><th>ON</th><th>OFF</th><th>Fixed</th>
+                    </tr>
+                </thead>
+                <tbody id="seasonalBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ANIMATION VIEW -->
+    <div id="animationView" class="hidden">
+        <div class="controls">
+            <label>Playlist Manager</label>
+            <button onclick="addClipToPlaylist()">+ Add Clip</button>
+            <button class="btn-danger" onclick="clearPlaylist()">Clear All</button>
+        </div>
+
+        <div class="playlist-container" id="playlistContainer">
+            <!-- Clips will be added here -->
+        </div>
+
+        <div class="controls">
+            <label>Global Settings</label>
+            <label>Speed:</label> <input type="number" id="animSpeed" value="0.5" min="0.1" step="0.1" style="width: 60px;">
+            <label>Layout Mode:</label>
+            <select id="animLayout">
+                <option value="sequence">Sequence (One after another)</option>
+                <option value="composite">Side-by-Side Comparison (Composite)</option>
+            </select>
+            <label>Comment:</label> <input type="text" id="animComment" placeholder="Overlay text" style="width: 150px;">
+            <button onclick="prepareAnimation()">Render & Play</button>
+        </div>
+
+        <div class="anim-player">
+            <div id="loadingAnim" class="loading hidden">Rendering Frames...</div>
+            <div class="anim-canvas-box">
+                <canvas id="animCanvas" width="720" height="360"></canvas>
+                <div style="position:absolute; bottom:10px; left:10px; color:white; background:rgba(0,0,0,0.5); padding:5px;">
+                    <span id="animStatus">Ready</span>
+                </div>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" id="animProgress"></div></div>
+            <div class="timeline-controls">
+                <button onclick="animPrev()">Prev</button>
+                <button onclick="animPlayPause()" id="btnPlayPause">Play</button>
+                <button onclick="animNext()">Next</button>
+                <span style="color:#aaa;" id="frameCounter">Frame 0 / 0</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer>
+    This code provide from: "GiamMa-based researchers SDR R&D IoT" | 
+    <a href="https://x.com/giammaiot2" target="_blank">@GiammaIoT2</a>
+</footer>
+
+<script>
+    // --- UTILS ---
+    const getURL = (y, m) => `https://salinity.oceansciences.org/images/maps/SMAP_RFI_percent_${y}_${m.toString().padStart(2,'0')}.png`;
+    
+    const loadImage = async (url) => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = url;
+        });
+    };
+
+    const showView = (v) => {
+        document.querySelectorAll('div[id$="View"]').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(`${v}View`).classList.remove('hidden');
+        document.getElementById(`btn-${v}`).classList.add('active');
+    };
+
+    const toggleZoom = (e) => e.target.classList.toggle('zoomed');
+    const dl = (id) => {
+        const c = document.getElementById(id);
+        if(!c) return;
+        const l = document.createElement('a');
+        l.download = `SMAP_RFI_${id}.png`;
+        l.href = c.toDataURL();
+        l.click();
+    };
+    document.addEventListener('click', e => { if(e.target.tagName === 'CANVAS' && e.target.id !== 'animCanvas') toggleZoom(e); });
+
+    // --- CONFIG ---
+    // Crop logic to remove legend/scale bars for better alignment
+    const CROP_BOTTOM = 30; // Pixels to remove from bottom
+
+    // --- BORDER LOGIC ---
+    let borderData = null;
+    async function drawBorders(ctx, w, h) {
+        if(!borderData) {
+            try {
+                const r = await fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json');
+                borderData = await r.json();
+            } catch(e) { return; }
+        }
+        const mapH = h - CROP_BOTTOM;
+        ctx.strokeStyle="rgba(255,255,255,0.3)"; ctx.lineWidth=1; ctx.beginPath();
+        borderData.features.forEach(f => {
+            const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
+            polys.forEach(poly => poly[0].forEach((p, i) => {
+                // Projection adjusted for crop
+                const x = (p[0]+180)*(w/360);
+                const y = ((90-p[1])/180)*mapH; 
+                if(i===0 || Math.abs(p[0] - poly[0][i-1][0]) > 180) ctx.moveTo(x,y);
+                else ctx.lineTo(x,y);
+            }));
+        });
+        ctx.stroke();
+    }
+
+    // --- CORE ANALYSIS LOGIC ---
+    async function analyzePair(ctxA, ctxB, ctxOn, ctxOff, ctxFixed, y1, m1, y2, m2, width, height) {
+        const img1 = await loadImage(getURL(y1, m1));
+        const img2 = await loadImage(getURL(y2, m2));
+
+        // Setup Canvases
+        [ctxA, ctxB, ctxOn, ctxOff, ctxFixed].forEach(c => { 
+            c.canvas.width = width; c.canvas.height = height; 
+            c.fillStyle = "#000"; c.fillRect(0,0,width,height); 
+        });
+
+        // Draw Originals (Cropped)
+        const mapH = height - CROP_BOTTOM;
+        if(img1) { ctxA.drawImage(img1, 0, 0, width, mapH); ctxA.fillStyle="#fff"; ctxA.fillText(`${y1}-${m1}`, 10, 20); }
+        if(img2) { ctxB.drawImage(img2, 0, 0, width, mapH); ctxB.fillStyle="#fff"; ctxB.fillText(`${y2}-${m2}`, 10, 20); }
+
+        // Calculate Differences
+        if(img1 && img2) {
+            const t1 = document.createElement('canvas'); t1.width=width; t1.height=height;
+            const t2 = document.createElement('canvas'); t2.width=width; t2.height=height;
+            const x1 = t1.getContext('2d'), x2 = t2.getContext('2d');
+            x1.drawImage(img1, 0, 0, width, mapH);
+            x2.drawImage(img2, 0, 0, width, mapH);
+
+            const d1 = x1.getImageData(0,0,width,mapH).data;
+            const d2 = x2.getImageData(0,0,width,mapH).data;
+            const rOn = ctxOn.createImageData(width,mapH);
+            const rOff = ctxOff.createImageData(width,mapH);
+            const rFixed = ctxFixed.createImageData(width,mapH);
+            
+            const thresh = 30;
+            const fixedThresh = 80;
+
+            for(let i=0; i<d1.length; i+=4) {
+                const i1 = (d1[i]+d1[i+1]+d1[i+2])/3;
+                const i2 = (d2[i]+d2[i+1]+d2[i+2])/3;
+                const diff = i2 - i1;
+                
+                if(diff > thresh) { 
+                    rOn.data[i]=0; rOn.data[i+1]=255; rOn.data[i+2]=0; rOn.data[i+3]=255;
+                } else if(diff < -thresh) { 
+                    rOff.data[i]=255; rOff.data[i+1]=0; rOff.data[i+2]=0; rOff.data[i+3]=255;
+                } else if (i1 > fixedThresh && i2 > fixedThresh) { 
+                    rFixed.data[i]=255; rFixed.data[i+1]=255; rFixed.data[i+2]=0; rFixed.data[i+3]=255;
+                }
+            }
+            
+            ctxOn.putImageData(rOn,0,0); drawBorders(ctxOn, width, height);
+            ctxOff.putImageData(rOff,0,0); drawBorders(ctxOff, width, height);
+            ctxFixed.putImageData(rFixed,0,0); drawBorders(ctxFixed, width, height);
+        }
+    }
+
+    // --- MAIN MONTHLY LOGIC ---
+    async function runMain() {
+        const l = document.getElementById('loadingMain'); l.classList.remove('hidden');
+        const [y1,m1] = document.getElementById('m1').value.split('-');
+        const [y2,m2] = document.getElementById('m2').value.split('-');
+        const w=720, h=360;
+        
+        await analyzePair(
+            document.getElementById('c_m1').getContext('2d'), 
+            document.getElementById('c_m2').getContext('2d'), 
+            document.getElementById('c_on').getContext('2d'), 
+            document.getElementById('c_off').getContext('2d'), 
+            document.getElementById('c_fixed').getContext('2d'), 
+            y1, m1, y2, m2, w, h
+        );
+        l.classList.add('hidden');
+    }
+
+    // --- SEASONAL LOGIC ---
+    async function runSeasonal() {
+        const l = document.getElementById('loadingSeasonal'); l.classList.remove('hidden');
+        const yA = document.getElementById('y1').value;
+        const yB = document.getElementById('y2').value;
+        const tbody = document.getElementById('seasonalBody'); tbody.innerHTML = '';
+        const tasks = [];
+
+        for(let m=1; m<=12; m++) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${m}</td>
+                <td><canvas id="s_${yA}_${m}"></canvas></td>
+                <td><canvas id="s_${yB}_${m}"></canvas></td>
+                <td><canvas id="s_on_${yB}_${m}"></canvas></td>
+                <td><canvas id="s_off_${yB}_${m}"></canvas></td>
+                <td><canvas id="s_fixed_${yB}_${m}"></canvas></td>`;
+            tbody.appendChild(tr);
+            
+            tasks.push(analyzePair(
+                document.getElementById(`s_${yA}_${m}`).getContext('2d'),
+                document.getElementById(`s_${yB}_${m}`).getContext('2d'),
+                document.getElementById(`s_on_${yB}_${m}`).getContext('2d'),
+                document.getElementById(`s_off_${yB}_${m}`).getContext('2d'),
+                document.getElementById(`s_fixed_${yB}_${m}`).getContext('2d'),
+                yA, m, yB, m, 720, 360
+            ));
+        }
+        await Promise.all(tasks);
+        l.classList.add('hidden');
+    }
+
+    // --- ANIMATION PLAYLIST LOGIC ---
+    let playlist = [];
+    
+    function addClipToPlaylist() {
+        const id = Date.now();
+        playlist.push({ id, start: '2025-01', end: '2025-02', mode: 'original' });
+        renderPlaylist();
+    }
+    
+    function removeClip(id) {
+        playlist = playlist.filter(c => c.id !== id);
+        renderPlaylist();
+    }
+
+    function clearPlaylist() {
+        playlist = [];
+        renderPlaylist();
+    }
+
+    function updateClip(id, key, val) {
+        const clip = playlist.find(c => c.id === id);
+        if(clip) clip[key] = val;
+    }
+
+    function renderPlaylist() {
+        const div = document.getElementById('playlistContainer');
+        div.innerHTML = playlist.map(c => `
+            <div class="playlist-item">
+                <label>Start:</label> <input type="month" value="${c.start}" onchange="updateClip(${c.id}, 'start', this.value)">
+                <label>End:</label> <input type="month" value="${c.end}" onchange="updateClip(${c.id}, 'end', this.value)">
+                <label>Mode:</label> 
+                <select onchange="updateClip(${c.id}, 'mode', this.value)">
+                    <option value="original" ${c.mode==='original'?'selected':''}>Original</option>
+                    <option value="on" ${c.mode==='on'?'selected':''}>Zones ON</option>
+                    <option value="off" ${c.mode==='off'?'selected':''}>Zones OFF</option>
+                    <option value="fixed" ${c.mode==='fixed'?'selected':''}>Zones Fixed</option>
+                </select>
+                <button class="btn-danger btn-sm" onclick="removeClip(${c.id})">X</button>
+            </div>
+        `).join('');
+    }
+
+    // --- ANIMATION RENDER LOGIC ---
+    let animFrames = [];
+    let currentFrame = 0;
+    let animInterval = null;
+    let isPlaying = false;
+
+    async function prepareAnimation() {
+        stopAnimation();
+        const l = document.getElementById('loadingAnim'); l.classList.remove('hidden');
+        const layout = document.getElementById('animLayout').value;
+        const comment = document.getElementById('animComment').value;
+        const w = layout === 'composite' ? 1440 : 720; // Double width for side-by-side
+        const h = 360;
+        
+        const canvas = document.getElementById('animCanvas');
+        canvas.width = w; canvas.height = h;
+        
+        animFrames = [];
+        
+        for(let clip of playlist) {
+            let [sY, sM] = clip.start.split('-').map(Number);
+            let [eY, eM] = clip.end.split('-').map(Number);
+            
+            while(sY < eY || (sY == eY && sM <= eM)) {
+                // Determine Previous Frame for Comparison
+                let pY = sY, pM = sM - 1;
+                if(pM === 0) { pM = 12; pY--; }
+
+                // Offscreen Canvases
+                const c1 = document.createElement('canvas'); c1.width=720; c1.height=h;
+                const c2 = document.createElement('canvas'); c2.width=720; c1.height=h;
+                const cOn = document.createElement('canvas'); cOn.width=720; cOn.height=h;
+                const cOff = document.createElement('canvas'); cOff.width=720; cOff.height=h;
+                const cFixed = document.createElement('canvas'); cFixed.width=720; cFixed.height=h;
+
+                await analyzePair(
+                    c1.getContext('2d'), c2.getContext('2d'),
+                    cOn.getContext('2d'), cOff.getContext('2d'), cFixed.getContext('2d'),
+                    pY, pM, sY, sM, 720, h
+                );
+
+                // Create Frame Canvas
+                const frameC = document.createElement('canvas'); frameC.width=w; frameC.height=h;
+                const fCtx = frameC.getContext('2d');
+                
+                // Draw based on Layout
+                if(layout === 'composite') {
+                    // Left: Prev, Right: Current
+                    fCtx.drawImage(c2, 0, 0); // Previous
+                    fCtx.drawImage(c1, 720, 0); // Current
+                    
+                    // Center Line
+                    fCtx.strokeStyle = "white"; fCtx.beginPath(); fCtx.moveTo(720,0); fCtx.lineTo(720,h); fCtx.stroke();
+                } else {
+                    // Sequence
+                    let src = c1;
+                    if(clip.mode === 'on') src = cOn;
+                    if(clip.mode === 'off') src = cOff;
+                    if(clip.mode === 'fixed') src = cFixed;
+                    fCtx.drawImage(src, 0, 0, w, h);
+                }
+
+                // Overlays
+                fCtx.fillStyle = "rgba(0,0,0,0.5)";
+                fCtx.fillRect(0, h-30, w, 30);
+                fCtx.fillStyle = "#fff";
+                fCtx.font = "20px Arial";
+                fCtx.fillText(`${sY}-${sM.toString().padStart(2,'0')} [${clip.mode.toUpperCase()}]`, 20, h-10);
+                if(comment) fCtx.fillText(comment, 200, h-10);
+
+                animFrames.push(frameC);
+                
+                sM++; if(sM > 12) { sM = 1; sY++; }
+            }
+        }
+
+        l.classList.add('hidden');
+        currentFrame = 0;
+        updateAnimDisplay();
+        if(animFrames.length > 0) animPlayPause();
+        else alert("No frames generated. Check playlist dates.");
+    }
+
+    function updateAnimDisplay() {
+        if(animFrames.length === 0) return;
+        const ctx = document.getElementById('animCanvas').getContext('2d');
+        ctx.clearRect(0,0,ctx.canvas.width, ctx.canvas.height);
+        ctx.drawImage(animFrames[currentFrame], 0, 0);
+        document.getElementById('frameCounter').innerText = `Frame ${currentFrame+1} / ${animFrames.length}`;
+        document.getElementById('animProgress').style.width = `${((currentFrame+1)/animFrames.length)*100}%`;
+        const f = animFrames[currentFrame];
+        // Simple text extraction logic for status (just generic)
+        document.getElementById('animStatus').innerText = "Playing...";
+    }
+
+    function animPlayPause() {
+        if(isPlaying) { clearInterval(animInterval); isPlaying = false; document.getElementById('btnPlayPause').innerText = "Play"; }
+        else {
+            if(animFrames.length === 0) return;
+            isPlaying = true; document.getElementById('btnPlayPause').innerText = "Pause";
+            const speed = parseFloat(document.getElementById('animSpeed').value) * 1000;
+            animInterval = setInterval(() => {
+                currentFrame++; if(currentFrame >= animFrames.length) currentFrame = 0;
+                updateAnimDisplay();
+            }, speed);
+        }
+    }
+    function stopAnimation() { clearInterval(animInterval); isPlaying = false; document.getElementById('btnPlayPause').innerText = "Play"; }
+    function animNext() { stopAnimation(); if(animFrames.length) { currentFrame = (currentFrame+1)%animFrames.length; updateAnimDisplay(); } }
+    function animPrev() { stopAnimation(); if(animFrames.length) { currentFrame = (currentFrame-1+animFrames.length)%animFrames.length; updateAnimDisplay(); } }
+
+    // Init default clip
+    addClipToPlaylist();
+</script>
+
+</body>
+</html>
