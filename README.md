@@ -78,7 +78,27 @@ Usage
 
 <img width="1897" height="901" alt="image" src="https://github.com/user-attachments/assets/2b763780-3ec4-4416-993e-6582cce85a6a" />
 
+NEW VERSION V2
 
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/9f49a148-00df-4ed0-b05a-a5c1d19464f8" />
+
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/32400a8f-e352-4e34-a5d4-fc45dc661078" />
+
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/990fc4cf-af12-48e1-8cb6-12d3be3d83be" />
+
+
+Fast Link:
+
+https://raw.githack.com/GiamMaBasedResearchers/SMAP-RFI-Analysis/main/SMAP%20NASA%20RFI%20Analysis%20v2.html
+
+What's New in v2.0
+
+    NASA-Themed Interface: A complete visual redesign inspired by NASA mission controls. The interface now features a dark space aesthetic, glassmorphism effects, and high-contrast colors optimized for data analysis.
+    "Zones Fixed" Analysis: Added a new visualization layer (Yellow) that identifies interference sources present in both compared timeframes, allowing researchers to pinpoint "Fixed" or persistent RFI noise.
+    Advanced Animation Engine: Introduced a powerful animation suite that goes beyond simple loops.
+        Playlists: Users can now create custom queues by adding multiple time clips (Start Date -> End Date) with independent visualization modes for each clip.
+        Composite View: A new playback mode that displays the "Current Frame" and "Previous Frame" side-by-side, allowing for immediate visual correlation of changes.
+    Smart Frame Processing: Implemented automatic cropping logic to exclude map legends, scales, and dates from the pixel analysis. This improves the accuracy of border projection and prevents processing artifacts on the image edges.
 
 Data Source
 
