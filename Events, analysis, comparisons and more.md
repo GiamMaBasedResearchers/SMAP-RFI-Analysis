@@ -257,3 +257,17 @@ The “round and concentric” areas you highlighted are typical of high-power j
 
 Scientific sources confirm that SMAP clearly detects the increase in RFI in conflict areas precisely because military jammers also operate in the L band (close to SMAP's 1.4 GHz).
 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+On 1 January 2024, a strong Mw 7.6 earthquake occurred on the Noto Peninsula, western Honshu Island, Japan. The earthquake produced a significant tsunami that spread over the entire Sea of Japan. This study focuses on the tsunami waves recorded by tide gauges in the northern part of the sea, including Tartar Strait. "It's a system issue, not just a frequency band issue."
+
+<img width="1551" height="842" alt="image" src="https://github.com/user-attachments/assets/6b5df69d-1774-4eac-b83b-d454ee081654" />
+
+https://x.com/search?q=from%3A%40GiammaIoT2%20Kamchatka%20monster&src=typed_query&f=live
+
+<img width="752" height="496" alt="image" src="https://github.com/user-attachments/assets/baf3368a-5465-4b74-8455-1f5edfcca8d5" />
+
+<img width="752" height="657" alt="image" src="https://github.com/user-attachments/assets/9abfac6b-80b8-4365-bc75-5b011dc68f9f" />
+
+
