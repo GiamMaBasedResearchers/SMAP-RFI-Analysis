@@ -203,7 +203,7 @@
             <label>Layout Mode:</label>
             <select id="animLayout">
                 <option value="sequence">Sequence (One after another)</option>
-                <option value="composite">Side-by-Side Comparison (Composite)</option>
+                <option value="composite">Composite (2x2 Grid)</option>
             </select>
             <label>Comment:</label> <input type="text" id="animComment" placeholder="Overlay text" style="width: 150px;">
             <button onclick="prepareAnimation()">Render & Play</button>
@@ -266,8 +266,9 @@
     document.addEventListener('click', e => { if(e.target.tagName === 'CANVAS' && e.target.id !== 'animCanvas') toggleZoom(e); });
 
     // --- CONFIG ---
-    // Crop logic to remove legend/scale bars for better alignment
-    const CROP_BOTTOM = 30; // Pixels to remove from bottom
+    // Crop logic to remove legend/scale bars (Bottom) and Colorbar (Right) for better alignment
+    const CROP_BOTTOM = 30; 
+    const CROP_RIGHT = 25; 
 
     // --- BORDER LOGIC ---
     let borderData = null;
@@ -279,12 +280,13 @@
             } catch(e) { return; }
         }
         const mapH = h - CROP_BOTTOM;
+        const mapW = w - CROP_RIGHT;
         ctx.strokeStyle="rgba(255,255,255,0.3)"; ctx.lineWidth=1; ctx.beginPath();
         borderData.features.forEach(f => {
             const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
             polys.forEach(poly => poly[0].forEach((p, i) => {
                 // Projection adjusted for crop
-                const x = (p[0]+180)*(w/360);
+                const x = (p[0]+180)*(mapW/360) + (CROP_RIGHT/2); // Center horizontally in cropped area
                 const y = ((90-p[1])/180)*mapH; 
                 if(i===0 || Math.abs(p[0] - poly[0][i-1][0]) > 180) ctx.moveTo(x,y);
                 else ctx.lineTo(x,y);
@@ -304,24 +306,30 @@
             c.fillStyle = "#000"; c.fillRect(0,0,width,height); 
         });
 
-        // Draw Originals (Cropped)
+        // Define Map Area (Cropped)
         const mapH = height - CROP_BOTTOM;
-        if(img1) { ctxA.drawImage(img1, 0, 0, width, mapH); ctxA.fillStyle="#fff"; ctxA.fillText(`${y1}-${m1}`, 10, 20); }
-        if(img2) { ctxB.drawImage(img2, 0, 0, width, mapH); ctxB.fillStyle="#fff"; ctxB.fillText(`${y2}-${m2}`, 10, 20); }
+        const mapW = width - CROP_RIGHT;
 
-        // Calculate Differences
+        // Draw Originals (Cropped)
+        if(img1) { ctxA.drawImage(img1, 0, 0, mapW, mapH); ctxA.fillStyle="#fff"; ctxA.fillText(`${y1}-${m1}`, 10, 20); }
+        if(img2) { ctxB.drawImage(img2, 0, 0, mapW, mapH); ctxB.fillStyle="#fff"; ctxB.fillText(`${y2}-${m2}`, 10, 20); }
+
+        // Calculate Differences (Only on Map Area)
         if(img1 && img2) {
             const t1 = document.createElement('canvas'); t1.width=width; t1.height=height;
             const t2 = document.createElement('canvas'); t2.width=width; t2.height=height;
             const x1 = t1.getContext('2d'), x2 = t2.getContext('2d');
-            x1.drawImage(img1, 0, 0, width, mapH);
-            x2.drawImage(img2, 0, 0, width, mapH);
+            x1.drawImage(img1, 0, 0, mapW, mapH);
+            x2.drawImage(img2, 0, 0, mapW, mapH);
 
-            const d1 = x1.getImageData(0,0,width,mapH).data;
-            const d2 = x2.getImageData(0,0,width,mapH).data;
-            const rOn = ctxOn.createImageData(width,mapH);
-            const rOff = ctxOff.createImageData(width,mapH);
-            const rFixed = ctxFixed.createImageData(width,mapH);
+            // FIX BUG 1: Process only the map area, not the full canvas including borders
+            const d1 = x1.getImageData(0, 0, mapW, mapH).data;
+            const d2 = x2.getImageData(0, 0, mapW, mapH).data;
+            
+            // Create result buffers only for the map area
+            const rOn = ctxOn.createImageData(mapW, mapH);
+            const rOff = ctxOff.createImageData(mapW, mapH);
+            const rFixed = ctxFixed.createImageData(mapW, mapH);
             
             const thresh = 30;
             const fixedThresh = 80;
@@ -340,9 +348,10 @@
                 }
             }
             
-            ctxOn.putImageData(rOn,0,0); drawBorders(ctxOn, width, height);
-            ctxOff.putImageData(rOff,0,0); drawBorders(ctxOff, width, height);
-            ctxFixed.putImageData(rFixed,0,0); drawBorders(ctxFixed, width, height);
+            // Put data back at 0,0. The rest of the canvas (border area) stays black.
+            ctxOn.putImageData(rOn, 0, 0); drawBorders(ctxOn, width, height);
+            ctxOff.putImageData(rOff, 0, 0); drawBorders(ctxOff, width, height);
+            ctxFixed.putImageData(rFixed, 0, 0); drawBorders(ctxFixed, width, height);
         }
     }
 
@@ -448,13 +457,24 @@
         const l = document.getElementById('loadingAnim'); l.classList.remove('hidden');
         const layout = document.getElementById('animLayout').value;
         const comment = document.getElementById('animComment').value;
-        const w = layout === 'composite' ? 1440 : 720; // Double width for side-by-side
-        const h = 360;
         
+        // Canvas Setup
         const canvas = document.getElementById('animCanvas');
+        let w, h;
+        
+        if(layout === 'composite') {
+            w = 1440; h = 720; // Double size for 2x2 grid
+        } else {
+            w = 720; h = 360;
+        }
         canvas.width = w; canvas.height = h;
         
         animFrames = [];
+        
+        // FIX BUG 2: Always analyze at standard resolution (720x360) 
+        // regardless of final output layout. This prevents stretching and mixing.
+        const STD_W = 720;
+        const STD_H = 360;
         
         for(let clip of playlist) {
             let [sY, sM] = clip.start.split('-').map(Number);
@@ -465,33 +485,48 @@
                 let pY = sY, pM = sM - 1;
                 if(pM === 0) { pM = 12; pY--; }
 
-                // Offscreen Canvases
-                const c1 = document.createElement('canvas'); c1.width=720; c1.height=h;
-                const c2 = document.createElement('canvas'); c2.width=720; c1.height=h;
-                const cOn = document.createElement('canvas'); cOn.width=720; cOn.height=h;
-                const cOff = document.createElement('canvas'); cOff.width=720; cOff.height=h;
-                const cFixed = document.createElement('canvas'); cFixed.width=720; cFixed.height=h;
+                // Offscreen Canvases (Fixed Standard Size)
+                const c1 = document.createElement('canvas'); c1.width=STD_W; c1.height=STD_H;
+                const c2 = document.createElement('canvas'); c2.width=STD_W; c2.height=STD_H;
+                const cOn = document.createElement('canvas'); cOn.width=STD_W; cOn.height=STD_H;
+                const cOff = document.createElement('canvas'); cOff.width=STD_W; cOff.height=STD_H;
+                const cFixed = document.createElement('canvas'); cFixed.width=STD_W; cFixed.height=STD_H;
 
                 await analyzePair(
                     c1.getContext('2d'), c2.getContext('2d'),
                     cOn.getContext('2d'), cOff.getContext('2d'), cFixed.getContext('2d'),
-                    pY, pM, sY, sM, 720, h
+                    pY, pM, sY, sM, STD_W, STD_H
                 );
 
-                // Create Frame Canvas
+                // Create Frame Canvas (Output size can vary)
                 const frameC = document.createElement('canvas'); frameC.width=w; frameC.height=h;
                 const fCtx = frameC.getContext('2d');
                 
-                // Draw based on Layout
                 if(layout === 'composite') {
-                    // Left: Prev, Right: Current
-                    fCtx.drawImage(c2, 0, 0); // Previous
-                    fCtx.drawImage(c1, 720, 0); // Current
+                    // FIX: 2x2 Grid (Original, ON, OFF, Fixed)
+                    fCtx.fillStyle = "#000"; fCtx.fillRect(0,0,w,h);
                     
-                    // Center Line
-                    fCtx.strokeStyle = "white"; fCtx.beginPath(); fCtx.moveTo(720,0); fCtx.lineTo(720,h); fCtx.stroke();
+                    // Top-Left: Original (Draw 720x360 image into 0,0)
+                    fCtx.drawImage(c1, 0, 0);
+                    fCtx.strokeStyle = "white"; fCtx.strokeRect(0,0,720,360);
+                    fCtx.fillStyle = "white"; fCtx.font = "20px Arial"; fCtx.fillText("Original", 10, 25);
+
+                    // Top-Right: Zones ON (Draw 720x360 image starting at x=720)
+                    fCtx.drawImage(cOn, 720, 0);
+                    fCtx.strokeRect(720,0,720,360);
+                    fCtx.fillStyle = "#0f0"; fCtx.fillText("Zones ON", 730, 25);
+
+                    // Bottom-Left: Zones OFF (Draw 720x360 image starting at y=360)
+                    fCtx.drawImage(cOff, 0, 360);
+                    fCtx.strokeRect(0,360,720,360);
+                    fCtx.fillStyle = "#f00"; fCtx.fillText("Zones OFF", 10, 385);
+
+                    // Bottom-Right: Zones Fixed (Draw 720x360 image starting at x=720, y=360)
+                    fCtx.drawImage(cFixed, 720, 360);
+                    fCtx.strokeRect(720,360,720,360);
+                    fCtx.fillStyle = "#ff0"; fCtx.fillText("Zones Fixed", 730, 385);
                 } else {
-                    // Sequence
+                    // Sequence Mode
                     let src = c1;
                     if(clip.mode === 'on') src = cOn;
                     if(clip.mode === 'off') src = cOff;
@@ -501,7 +536,7 @@
 
                 // Overlays
                 fCtx.fillStyle = "rgba(0,0,0,0.5)";
-                fCtx.fillRect(0, h-30, w, 30);
+                fCtx.fillRect(0, h-40, w, 40);
                 fCtx.fillStyle = "#fff";
                 fCtx.font = "20px Arial";
                 fCtx.fillText(`${sY}-${sM.toString().padStart(2,'0')} [${clip.mode.toUpperCase()}]`, 20, h-10);
@@ -528,7 +563,6 @@
         document.getElementById('frameCounter').innerText = `Frame ${currentFrame+1} / ${animFrames.length}`;
         document.getElementById('animProgress').style.width = `${((currentFrame+1)/animFrames.length)*100}%`;
         const f = animFrames[currentFrame];
-        // Simple text extraction logic for status (just generic)
         document.getElementById('animStatus').innerText = "Playing...";
     }
 
