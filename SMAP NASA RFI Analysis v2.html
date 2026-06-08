@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SMAP NASA RFI Analysis Tool</title>
+    <title>SMAP NASA RFI Analysis Tool (BG CROP FIX)</title>
     <style>
         :root { 
             --nasa-blue: #4b9cd3; 
             --nasa-red: #fc3d21;
             --nasa-dark: #0b0d17;
-            --glass: rgba(11, 13, 23, 0.85);
+            --glass: rgba(11, 13, 23, 0.90);
             --border: rgba(75, 156, 211, 0.4);
         }
         
@@ -38,7 +38,7 @@
         }
         h1 { margin: 0; color: var(--nasa-blue); text-shadow: 0 0 10px rgba(75, 156, 211, 0.5); font-size: 2rem; letter-spacing: 1px; text-transform: uppercase;}
         
-        .nav-btn { background: transparent; border: 1px solid var(--nasa-blue); color: var(--nasa-blue); transition: 0.3s; }
+        .nav-btn { background: transparent; border: 1px solid var(--nasa-blue); color: var(--nasa-blue); transition: 0.3s; cursor: pointer; padding: 10px 20px;}
         .nav-btn:hover, .nav-btn.active { background: var(--nasa-blue); color: #fff; box-shadow: 0 0 15px var(--nasa-blue); }
 
         /* Controls */
@@ -97,7 +97,8 @@
         .anim-canvas-box { 
             position: relative; border: 2px solid var(--nasa-blue); 
             box-shadow: 0 0 30px rgba(75, 156, 211, 0.3); 
-            background: #000; max-width: 100%;
+            background: transparent; 
+            max-width: 100%;
         }
         .timeline-controls { display: flex; gap: 15px; align-items: center; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 50px; border: 1px solid #333; }
         .progress-bar { width: 100%; height: 6px; background: #333; border-radius: 3px; margin-top: 10px; overflow: hidden; }
@@ -105,7 +106,7 @@
 
         .canvas-wrapper { position: relative; display: inline-block; }
         
-        canvas { max-width: 100%; height: auto; border: 1px solid #333; cursor: zoom-in; background: #000; }
+        canvas { max-width: 100%; height: auto; border: 1px solid #333; cursor: zoom-in; background: transparent; }
         canvas.zoomed { 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(1.5); 
             z-index: 2000; box-shadow: 0 0 0 100vw rgba(0,0,0,0.9); 
@@ -157,11 +158,11 @@
         <div id="loadingMain" class="loading hidden">Processing Satellite Data...</div>
         
         <div class="grid grid-3">
-            <div class="card"><h3>Start Month</h3><div class="canvas-wrapper"><canvas id="c_m1"></canvas></div><div class="toolbar"><button onclick="dl('c_m1')">Save</button></div></div>
-            <div class="card"><h3>Comparison Month</h3><div class="canvas-wrapper"><canvas id="c_m2"></canvas></div><div class="toolbar"><button onclick="dl('c_m2')">Save</button></div></div>
-            <div class="card"><h3>Zones Turned ON</h3><div class="canvas-wrapper"><canvas id="c_on"></canvas></div><p class="legend green">New Interference</p><div class="toolbar"><button onclick="dl('c_on')">Save</button></div></div>
-            <div class="card"><h3>Zones Turned OFF</h3><div class="canvas-wrapper"><canvas id="c_off"></canvas></div><p class="legend red">Reduced Interference</p><div class="toolbar"><button onclick="dl('c_off')">Save</button></div></div>
-            <div class="card"><h3>Zones Fixed</h3><div class="canvas-wrapper"><canvas id="c_fixed"></canvas></div><p class="legend yellow">Stable Interference</p><div class="toolbar"><button onclick="dl('c_fixed')">Save</button></div></div>
+            <div class="card"><h3>Start Month</h3><div class="canvas-wrapper"><canvas id="c_m1" width="720" height="360"></canvas></div><div class="toolbar"><button onclick="dl('c_m1')">Save</button></div></div>
+            <div class="card"><h3>Comparison Month</h3><div class="canvas-wrapper"><canvas id="c_m2" width="720" height="360"></canvas></div><div class="toolbar"><button onclick="dl('c_m2')">Save</button></div></div>
+            <div class="card"><h3>Zones Turned ON</h3><div class="canvas-wrapper"><canvas id="c_on" width="720" height="360"></canvas></div><p class="legend green">New Interference</p><div class="toolbar"><button onclick="dl('c_on')">Save</button></div></div>
+            <div class="card"><h3>Zones Turned OFF</h3><div class="canvas-wrapper"><canvas id="c_off" width="720" height="360"></canvas></div><p class="legend red">Reduced Interference</p><div class="toolbar"><button onclick="dl('c_off')">Save</button></div></div>
+            <div class="card"><h3>Zones Fixed</h3><div class="canvas-wrapper"><canvas id="c_fixed" width="720" height="360"></canvas></div><p class="legend yellow">Stable Interference</p><div class="toolbar"><button onclick="dl('c_fixed')">Save</button></div></div>
         </div>
     </div>
 
@@ -234,18 +235,50 @@
 </footer>
 
 <script>
-    // --- UTILS ---
+    // --- CONFIG & ASSETS ---
     const getURL = (y, m) => `https://salinity.oceansciences.org/images/maps/SMAP_RFI_percent_${y}_${m.toString().padStart(2,'0')}.png`;
+    const BG_URL = 'https://raw.githubusercontent.com/GiamMaBasedResearchers/SMAP-RFI-Analysis/main/Background_map.jpg';
     
+    // Assets globals
+    let bgMapImage = null;
+    let borderData = null;
+    let assetsLoaded = false;
+
+    // --- UTILS ---
     const loadImage = async (url) => {
         return new Promise((resolve) => {
             const img = new Image();
             img.crossOrigin = "Anonymous";
-            img.onload = () => resolve(img);
-            img.onerror = () => resolve(null);
+            img.onload = () => {
+                console.log("Successfully loaded:", url);
+                resolve(img);
+            };
+            img.onerror = () => { 
+                console.error("Failed to load", url); 
+                resolve(null); 
+            };
             img.src = url;
         });
     };
+
+    // Startup Asset Loading
+    (async function initAssets() {
+        try {
+            console.log("Loading Assets...");
+            const [bgRes] = await Promise.all([
+                loadImage(BG_URL),
+                fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json')
+                .then(r => r.json())
+                .then(data => { borderData = data; }) 
+                .catch(e => console.error("Borders fetch failed", e))
+            ]);
+            bgMapImage = bgRes;
+            assetsLoaded = true;
+            console.log("Assets Loaded Ready.");
+        } catch (e) {
+            console.error("Error loading assets", e);
+        }
+    })();
 
     const showView = (v) => {
         document.querySelectorAll('div[id$="View"]').forEach(el => el.classList.add('hidden'));
@@ -265,36 +298,6 @@
     };
     document.addEventListener('click', e => { if(e.target.tagName === 'CANVAS' && e.target.id !== 'animCanvas') toggleZoom(e); });
 
-    // --- CONFIG ---
-    // Crop logic to remove legend/scale bars (Bottom) and Colorbar (Right) for better alignment
-    const CROP_BOTTOM = 30; 
-    const CROP_RIGHT = 25; 
-
-    // --- BORDER LOGIC ---
-    let borderData = null;
-    async function drawBorders(ctx, w, h) {
-        if(!borderData) {
-            try {
-                const r = await fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json');
-                borderData = await r.json();
-            } catch(e) { return; }
-        }
-        const mapH = h - CROP_BOTTOM;
-        const mapW = w - CROP_RIGHT;
-        ctx.strokeStyle="rgba(255,255,255,0.3)"; ctx.lineWidth=1; ctx.beginPath();
-        borderData.features.forEach(f => {
-            const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
-            polys.forEach(poly => poly[0].forEach((p, i) => {
-                // Projection adjusted for crop
-                const x = (p[0]+180)*(mapW/360) + (CROP_RIGHT/2); // Center horizontally in cropped area
-                const y = ((90-p[1])/180)*mapH; 
-                if(i===0 || Math.abs(p[0] - poly[0][i-1][0]) > 180) ctx.moveTo(x,y);
-                else ctx.lineTo(x,y);
-            }));
-        });
-        ctx.stroke();
-    }
-
     // --- CORE ANALYSIS LOGIC ---
     async function analyzePair(ctxA, ctxB, ctxOn, ctxOff, ctxFixed, y1, m1, y2, m2, width, height) {
         const img1 = await loadImage(getURL(y1, m1));
@@ -302,62 +305,109 @@
 
         // Setup Canvases
         [ctxA, ctxB, ctxOn, ctxOff, ctxFixed].forEach(c => { 
-            c.canvas.width = width; c.canvas.height = height; 
-            c.fillStyle = "#000"; c.fillRect(0,0,width,height); 
+            c.canvas.width = width; c.canvas.height = height;
+            c.clearRect(0, 0, width, height);
         });
 
-        // Define Map Area (Cropped)
-        const mapH = height - CROP_BOTTOM;
-        const mapW = width - CROP_RIGHT;
+        // 1. ORIGINAL IMAGES
+        if(img1) { ctxA.drawImage(img1, 0, 0, width, height); ctxA.fillStyle="#fff"; ctxA.font="20px Arial"; ctxA.fillText(`${y1}-${m1}`, 10, 25); }
+        if(img2) { ctxB.drawImage(img2, 0, 0, width, height); ctxB.fillStyle="#fff"; ctxB.font="20px Arial"; ctxB.fillText(`${y2}-${m2}`, 10, 25); }
 
-        // Draw Originals (Cropped)
-        if(img1) { ctxA.drawImage(img1, 0, 0, mapW, mapH); ctxA.fillStyle="#fff"; ctxA.fillText(`${y1}-${m1}`, 10, 20); }
-        if(img2) { ctxB.drawImage(img2, 0, 0, mapW, mapH); ctxB.fillStyle="#fff"; ctxB.fillText(`${y2}-${m2}`, 10, 20); }
-
-        // Calculate Differences (Only on Map Area)
+        // Calculate Differences
         if(img1 && img2) {
             const t1 = document.createElement('canvas'); t1.width=width; t1.height=height;
             const t2 = document.createElement('canvas'); t2.width=width; t2.height=height;
             const x1 = t1.getContext('2d'), x2 = t2.getContext('2d');
-            x1.drawImage(img1, 0, 0, mapW, mapH);
-            x2.drawImage(img2, 0, 0, mapW, mapH);
-
-            // FIX BUG 1: Process only the map area, not the full canvas including borders
-            const d1 = x1.getImageData(0, 0, mapW, mapH).data;
-            const d2 = x2.getImageData(0, 0, mapW, mapH).data;
             
-            // Create result buffers only for the map area
-            const rOn = ctxOn.createImageData(mapW, mapH);
-            const rOff = ctxOff.createImageData(mapW, mapH);
-            const rFixed = ctxFixed.createImageData(mapW, mapH);
+            x1.drawImage(img1, 0, 0, width, height);
+            x2.drawImage(img2, 0, 0, width, height);
+
+            const d1 = x1.getImageData(0, 0, width, height).data;
+            const d2 = x2.getImageData(0, 0, width, height).data;
+            
+            const rOn = ctxOn.createImageData(width, height);
+            const rOff = ctxOff.createImageData(width, height);
+            const rFixed = ctxFixed.createImageData(width, height);
             
             const thresh = 30;
-            const fixedThresh = 80;
+            const fixedThresh = 60; 
+
+            const MARGIN_LEFT = 45;   
+            const MARGIN_TOP = 35;    
+            const MARGIN_RIGHT = 60;  
+            const MARGIN_BOTTOM = 30; 
 
             for(let i=0; i<d1.length; i+=4) {
                 const i1 = (d1[i]+d1[i+1]+d1[i+2])/3;
                 const i2 = (d2[i]+d2[i+1]+d2[i+2])/3;
                 const diff = i2 - i1;
                 
+                const pixelIndex = i / 4;
+                const x = pixelIndex % width;
+                const y = Math.floor(pixelIndex / width);
+                
+                const isExcludedArea = (x < MARGIN_LEFT || y < MARGIN_TOP || x > width - MARGIN_RIGHT || y > height - MARGIN_BOTTOM);
+                
                 if(diff > thresh) { 
                     rOn.data[i]=0; rOn.data[i+1]=255; rOn.data[i+2]=0; rOn.data[i+3]=255;
                 } else if(diff < -thresh) { 
                     rOff.data[i]=255; rOff.data[i+1]=0; rOff.data[i+2]=0; rOff.data[i+3]=255;
-                } else if (i1 > fixedThresh && i2 > fixedThresh) { 
+                } 
+                else if (i1 > fixedThresh && i2 > fixedThresh && !isExcludedArea) { 
                     rFixed.data[i]=255; rFixed.data[i+1]=255; rFixed.data[i+2]=0; rFixed.data[i+3]=255;
                 }
             }
             
-            // Put data back at 0,0. The rest of the canvas (border area) stays black.
-            ctxOn.putImageData(rOn, 0, 0); drawBorders(ctxOn, width, height);
-            ctxOff.putImageData(rOff, 0, 0); drawBorders(ctxOff, width, height);
-            ctxFixed.putImageData(rFixed, 0, 0); drawBorders(ctxFixed, width, height);
+            // 2. ZONES MAPS (Layering: CROPPED Background -> Colors)
+            
+            const zoneContexts = [ctxOn, ctxOff, ctxFixed];
+            const zoneData = [rOn, rOff, rFixed];
+
+            // FIX: Configurazione per ritagliare il Background Image ed evitare lo shift
+            const BG_CROP_RIGHT = 40; // Esclude potenziale legenda sulla destra dell'immagine
+            const BG_CROP_BOTTOM = 20; // Esclude barra inferiore
+
+            zoneContexts.forEach((ctx, index) => {
+                // Layer 1: Disegna la nuova immagine di sfondo
+                // Usiamo drawImage con 9 argomenti per ritagliare la sorgente (bgMapImage)
+                // Source: (x, y, w, h). Dest: (0, 0, width, height)
+                if(bgMapImage) {
+                    ctx.drawImage(
+                        bgMapImage, 
+                        0, 0, 
+                        bgMapImage.width - BG_CROP_RIGHT, 
+                        bgMapImage.height - BG_CROP_BOTTOM, 
+                        0, 0, 
+                        width, height
+                    );
+                }
+
+                // Layer 2: Sovrapponi i pixel colorati
+                const tempC = document.createElement('canvas');
+                tempC.width = width; tempC.height = height;
+                const tempCtx = tempC.getContext('2d');
+                tempCtx.putImageData(zoneData[index], 0, 0);
+                
+                ctx.drawImage(tempC, 0, 0);
+            });
         }
     }
 
     // --- MAIN MONTHLY LOGIC ---
     async function runMain() {
         const l = document.getElementById('loadingMain'); l.classList.remove('hidden');
+        
+        if(!assetsLoaded) {
+            l.innerText = "Loading Map Assets...";
+            await new Promise(r => setTimeout(r, 100)); 
+            while(!assetsLoaded) { await new Promise(r => setTimeout(r, 200)); }
+            l.innerText = "Processing Satellite Data...";
+        }
+        
+        if(!bgMapImage) {
+            alert("Warning: Background map failed to load. Check console for details.");
+        }
+
         const [y1,m1] = document.getElementById('m1').value.split('-');
         const [y2,m2] = document.getElementById('m2').value.split('-');
         const w=720, h=360;
@@ -376,6 +426,13 @@
     // --- SEASONAL LOGIC ---
     async function runSeasonal() {
         const l = document.getElementById('loadingSeasonal'); l.classList.remove('hidden');
+        
+        if(!assetsLoaded) {
+            l.innerText = "Loading Map Assets...";
+            while(!assetsLoaded) { await new Promise(r => setTimeout(r, 200)); }
+            l.innerText = "Generating Annual Grid...";
+        }
+
         const yA = document.getElementById('y1').value;
         const yB = document.getElementById('y2').value;
         const tbody = document.getElementById('seasonalBody'); tbody.innerHTML = '';
@@ -384,11 +441,11 @@
         for(let m=1; m<=12; m++) {
             const tr = document.createElement('tr');
             tr.innerHTML = `<td>${m}</td>
-                <td><canvas id="s_${yA}_${m}"></canvas></td>
-                <td><canvas id="s_${yB}_${m}"></canvas></td>
-                <td><canvas id="s_on_${yB}_${m}"></canvas></td>
-                <td><canvas id="s_off_${yB}_${m}"></canvas></td>
-                <td><canvas id="s_fixed_${yB}_${m}"></canvas></td>`;
+                <td><canvas id="s_${yA}_${m}" width="720" height="360"></canvas></td>
+                <td><canvas id="s_${yB}_${m}" width="720" height="360"></canvas></td>
+                <td><canvas id="s_on_${yB}_${m}" width="720" height="360"></canvas></td>
+                <td><canvas id="s_off_${yB}_${m}" width="720" height="360"></canvas></td>
+                <td><canvas id="s_fixed_${yB}_${m}" width="720" height="360"></canvas></td>`;
             tbody.appendChild(tr);
             
             tasks.push(analyzePair(
@@ -455,15 +512,21 @@
     async function prepareAnimation() {
         stopAnimation();
         const l = document.getElementById('loadingAnim'); l.classList.remove('hidden');
+        
+        if(!assetsLoaded) {
+            l.innerText = "Loading Map Assets...";
+            while(!assetsLoaded) { await new Promise(r => setTimeout(r, 200)); }
+            l.innerText = "Rendering Frames...";
+        }
+
         const layout = document.getElementById('animLayout').value;
         const comment = document.getElementById('animComment').value;
         
-        // Canvas Setup
         const canvas = document.getElementById('animCanvas');
         let w, h;
         
         if(layout === 'composite') {
-            w = 1440; h = 720; // Double size for 2x2 grid
+            w = 1440; h = 720;
         } else {
             w = 720; h = 360;
         }
@@ -471,21 +534,21 @@
         
         animFrames = [];
         
-        // FIX BUG 2: Always analyze at standard resolution (720x360) 
-        // regardless of final output layout. This prevents stretching and mixing.
         const STD_W = 720;
         const STD_H = 360;
         
+        // Apply crop logic also to animation generation for consistency
+        const BG_CROP_RIGHT = 40;
+        const BG_CROP_BOTTOM = 20;
+
         for(let clip of playlist) {
             let [sY, sM] = clip.start.split('-').map(Number);
             let [eY, eM] = clip.end.split('-').map(Number);
             
             while(sY < eY || (sY == eY && sM <= eM)) {
-                // Determine Previous Frame for Comparison
                 let pY = sY, pM = sM - 1;
                 if(pM === 0) { pM = 12; pY--; }
 
-                // Offscreen Canvases (Fixed Standard Size)
                 const c1 = document.createElement('canvas'); c1.width=STD_W; c1.height=STD_H;
                 const c2 = document.createElement('canvas'); c2.width=STD_W; c2.height=STD_H;
                 const cOn = document.createElement('canvas'); cOn.width=STD_W; cOn.height=STD_H;
@@ -498,35 +561,27 @@
                     pY, pM, sY, sM, STD_W, STD_H
                 );
 
-                // Create Frame Canvas (Output size can vary)
                 const frameC = document.createElement('canvas'); frameC.width=w; frameC.height=h;
                 const fCtx = frameC.getContext('2d');
                 
                 if(layout === 'composite') {
-                    // FIX: 2x2 Grid (Original, ON, OFF, Fixed)
                     fCtx.fillStyle = "#000"; fCtx.fillRect(0,0,w,h);
-                    
-                    // Top-Left: Original (Draw 720x360 image into 0,0)
                     fCtx.drawImage(c1, 0, 0);
-                    fCtx.strokeStyle = "white"; fCtx.strokeRect(0,0,720,360);
-                    fCtx.fillStyle = "white"; fCtx.font = "20px Arial"; fCtx.fillText("Original", 10, 25);
+                    fCtx.strokeStyle = "white"; fCtx.lineWidth = 2; fCtx.strokeRect(0,0,720,360);
+                    fCtx.fillStyle = "white"; fCtx.font = "24px Arial"; fCtx.fillText("Original", 15, 35);
 
-                    // Top-Right: Zones ON (Draw 720x360 image starting at x=720)
                     fCtx.drawImage(cOn, 720, 0);
                     fCtx.strokeRect(720,0,720,360);
-                    fCtx.fillStyle = "#0f0"; fCtx.fillText("Zones ON", 730, 25);
+                    fCtx.fillStyle = "#0f0"; fCtx.fillText("Zones ON", 735, 35);
 
-                    // Bottom-Left: Zones OFF (Draw 720x360 image starting at y=360)
                     fCtx.drawImage(cOff, 0, 360);
                     fCtx.strokeRect(0,360,720,360);
-                    fCtx.fillStyle = "#f00"; fCtx.fillText("Zones OFF", 10, 385);
+                    fCtx.fillStyle = "#f00"; fCtx.fillText("Zones OFF", 15, 395);
 
-                    // Bottom-Right: Zones Fixed (Draw 720x360 image starting at x=720, y=360)
                     fCtx.drawImage(cFixed, 720, 360);
                     fCtx.strokeRect(720,360,720,360);
-                    fCtx.fillStyle = "#ff0"; fCtx.fillText("Zones Fixed", 730, 385);
+                    fCtx.fillStyle = "#ff0"; fCtx.fillText("Zones Fixed", 735, 395);
                 } else {
-                    // Sequence Mode
                     let src = c1;
                     if(clip.mode === 'on') src = cOn;
                     if(clip.mode === 'off') src = cOff;
@@ -534,13 +589,12 @@
                     fCtx.drawImage(src, 0, 0, w, h);
                 }
 
-                // Overlays
-                fCtx.fillStyle = "rgba(0,0,0,0.5)";
-                fCtx.fillRect(0, h-40, w, 40);
+                fCtx.fillStyle = "rgba(0,0,0,0.6)";
+                fCtx.fillRect(0, h-50, w, 50);
                 fCtx.fillStyle = "#fff";
-                fCtx.font = "20px Arial";
-                fCtx.fillText(`${sY}-${sM.toString().padStart(2,'0')} [${clip.mode.toUpperCase()}]`, 20, h-10);
-                if(comment) fCtx.fillText(comment, 200, h-10);
+                fCtx.font = "bold 24px Arial";
+                fCtx.fillText(`${sY}-${sM.toString().padStart(2,'0')} [${clip.mode.toUpperCase()}]`, 20, h-15);
+                if(comment) fCtx.fillText(comment, 350, h-15);
 
                 animFrames.push(frameC);
                 
@@ -562,8 +616,7 @@
         ctx.drawImage(animFrames[currentFrame], 0, 0);
         document.getElementById('frameCounter').innerText = `Frame ${currentFrame+1} / ${animFrames.length}`;
         document.getElementById('animProgress').style.width = `${((currentFrame+1)/animFrames.length)*100}%`;
-        const f = animFrames[currentFrame];
-        document.getElementById('animStatus').innerText = "Playing...";
+        document.getElementById('animStatus').innerText = isPlaying ? "Playing..." : "Paused";
     }
 
     function animPlayPause() {
