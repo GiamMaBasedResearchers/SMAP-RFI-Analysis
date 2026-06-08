@@ -34,24 +34,29 @@ SMAP Analysis Tool
 
 Features
 
-    Monthly Comparison: Compare two specific months to identify localized changes in RFI patterns.
-    Year-to-Year Comparison: Analyze seasonal trends by comparing two full years side-by-side in a comprehensive grid view.
-    Automated Difference Maps:
-        Green Zones: Indicates new or increased interference (Zones Turned ON).
-        Red Zones: Indicates reduced or disappeared interference (Zones Turned OFF).
-    Geographic Context: Automatic overlay of country borders for precise geolocation.
-    Interactive Tools:
-        Zoom in/out functionality for detailed inspection.
-        Direct download of analyzed maps (Original, ON, OFF) for reports.
-    Lightweight Architecture: Runs entirely in the browser using HTML5 Canvas and JavaScript. No backend server installation required.
+Monthly Comparison: Compare two specific months to identify localized changes in RFI patterns.
+Year-to-Year Comparison: Analyze seasonal trends by comparing two full years side-by-side in a comprehensive grid view.
+
+Automated Difference Maps:
+
+Green Zones: Indicates new or increased interference (Zones Turned ON).
+Red Zones: Indicates reduced or disappeared interference (Zones Turned OFF).
+
+Geographic Context: Automatic overlay of country borders for precise geolocation.
+
+Interactive Tools:
+
+Zoom in/out functionality for detailed inspection.
+Direct download of analyzed maps (Original, ON, OFF) for reports.
+Lightweight Architecture: Runs entirely in the browser using HTML5 Canvas and JavaScript. No backend server installation required.
 
 Getting Started
 
 No installation is needed. This tool is designed as a single, self-contained HTML file.
 
-    Download the index.html file from this repository.
-    Open the file in any modern web browser (Google Chrome, Mozilla Firefox, Microsoft Edge).
-    Ensure you have an active internet connection to fetch the SMAP imagery data.
+Download the index.html file from this repository.
+Open the file in any modern web browser (Google Chrome, Mozilla Firefox, Microsoft Edge).
+Ensure you have an active internet connection to fetch the SMAP imagery data.
 
 Usage
 1. Monthly Comparison
@@ -93,25 +98,35 @@ https://raw.githack.com/GiamMaBasedResearchers/SMAP-RFI-Analysis/main/SMAP%20NAS
 
 What's New in v2.0
 
-    NASA-Themed Interface: A complete visual redesign inspired by NASA mission controls. The interface now features a dark space aesthetic, glassmorphism effects, and high-contrast colors optimized for data analysis.
-    "Zones Fixed" Analysis: Added a new visualization layer (Yellow) that identifies interference sources present in both compared timeframes, allowing researchers to pinpoint "Fixed" or persistent RFI noise.
-    Advanced Animation Engine: Introduced a powerful animation suite that goes beyond simple loops.
-        Playlists: Users can now create custom queues by adding multiple time clips (Start Date -> End Date) with independent visualization modes for each clip.
-        Composite View: A new playback mode that displays the "Current Frame" and "Previous Frame" side-by-side, allowing for immediate visual correlation of changes.
-    Smart Frame Processing: Implemented automatic cropping logic to exclude map legends, scales, and dates from the pixel analysis. This improves the accuracy of border projection and prevents processing artifacts on the image edges.
+NASA-Themed Interface: A complete visual redesign inspired by NASA mission controls. The interface now features a dark space aesthetic, glassmorphism effects, and high-contrast colors optimized for data analysis.
+
+"Zones Fixed" Analysis: Added a new visualization layer (Yellow) that identifies interference sources present in both compared timeframes, allowing researchers to pinpoint "Fixed" or persistent RFI noise.
+
+Advanced Animation Engine: Introduced a powerful animation suite that goes beyond simple loops.
+
+Playlists: Users can now create custom queues by adding multiple time clips (Start Date -> End Date) with independent visualization modes for each clip.
+
+Composite View: A new playback mode that displays the "Current Frame" and "Previous Frame" side-by-side, allowing for immediate visual correlation of changes.
+
+Smart Frame Processing: Implemented automatic cropping logic to exclude map legends, scales, and dates from the pixel analysis. This improves the accuracy of border projection and prevents processing artifacts on the image edges.
+
 
 Data Source
 
 This tool utilizes publicly available data provided by the NASA SMAP mission:
 
-    Data Provider: NASA Aquarius/SAC-D & SMAP Missions
-    Imagery: SMAP Radiometer RFI Percent Maps.
+https://salinity.oceansciences.org/smap-radiometer.htm
+
+Data Provider: NASA Aquarius/SAC-D & SMAP Missions
+Imagery: SMAP Radiometer RFI Percent Maps.
+
 
 Technical Details
 
-    Core Logic: Image processing is performed locally using the HTML5 Canvas API. Pixel intensity values are compared between two timeframes to generate difference maps.
-    Projection: The tool assumes an Equirectangular (Plate Carrée) projection for map overlay and alignment.
-    Compatibility: Compatible with all major browsers supporting ES6+ and Canvas API.
+Core Logic: Image processing is performed locally using the HTML5 Canvas API. Pixel intensity values are compared between two timeframes to generate difference maps.
+Projection: The tool assumes an Equirectangular (Plate Carrée) projection for map overlay and alignment.
+Compatibility: Compatible with all major browsers supporting ES6+ and Canvas API.
+
 
 ⚠️ Disclaimer
 
