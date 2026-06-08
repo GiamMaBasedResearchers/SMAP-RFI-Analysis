@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SMAP NASA RFI Analysis Tool (BG CROP FIX)</title>
+    <title>SMAP NASA RFI Analysis Tool (FIXED ALIGNMENT)</title>
     <style>
         :root { 
             --nasa-blue: #4b9cd3; 
@@ -310,6 +310,7 @@
         });
 
         // 1. ORIGINAL IMAGES
+        // Draw satellite images exactly as they are (0,0 -> width, height)
         if(img1) { ctxA.drawImage(img1, 0, 0, width, height); ctxA.fillStyle="#fff"; ctxA.font="20px Arial"; ctxA.fillText(`${y1}-${m1}`, 10, 25); }
         if(img2) { ctxB.drawImage(img2, 0, 0, width, height); ctxB.fillStyle="#fff"; ctxB.font="20px Arial"; ctxB.fillText(`${y2}-${m2}`, 10, 25); }
 
@@ -358,31 +359,20 @@
                 }
             }
             
-            // 2. ZONES MAPS (Layering: CROPPED Background -> Colors)
-            
+            // 2. ZONES MAPS (Layering: Background -> Colors)
             const zoneContexts = [ctxOn, ctxOff, ctxFixed];
             const zoneData = [rOn, rOff, rFixed];
 
-            // FIX: Configurazione per ritagliare il Background Image ed evitare lo shift
-            const BG_CROP_RIGHT = 40; // Esclude potenziale legenda sulla destra dell'immagine
-            const BG_CROP_BOTTOM = 20; // Esclude barra inferiore
-
             zoneContexts.forEach((ctx, index) => {
-                // Layer 1: Disegna la nuova immagine di sfondo
-                // Usiamo drawImage con 9 argomenti per ritagliare la sorgente (bgMapImage)
-                // Source: (x, y, w, h). Dest: (0, 0, width, height)
+                // Layer 1: Draw Background Map
+                // FIX: Since bgMapImage is identical in size/proportions to NASA images, 
+                // we draw it exactly like img1/img2 (0,0, width, height).
+                // No cropping or centering math is needed.
                 if(bgMapImage) {
-                    ctx.drawImage(
-                        bgMapImage, 
-                        0, 0, 
-                        bgMapImage.width - BG_CROP_RIGHT, 
-                        bgMapImage.height - BG_CROP_BOTTOM, 
-                        0, 0, 
-                        width, height
-                    );
+                    ctx.drawImage(bgMapImage, 0, 0, width, height);
                 }
 
-                // Layer 2: Sovrapponi i pixel colorati
+                // Layer 2: Overlay Colored Pixels
                 const tempC = document.createElement('canvas');
                 tempC.width = width; tempC.height = height;
                 const tempCtx = tempC.getContext('2d');
@@ -537,10 +527,8 @@
         const STD_W = 720;
         const STD_H = 360;
         
-        // Apply crop logic also to animation generation for consistency
-        const BG_CROP_RIGHT = 40;
-        const BG_CROP_BOTTOM = 20;
-
+        // Note: Alignment logic is now simple 1:1 mapping inside analyzePair
+        
         for(let clip of playlist) {
             let [sY, sM] = clip.start.split('-').map(Number);
             let [eY, eM] = clip.end.split('-').map(Number);
